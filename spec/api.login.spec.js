@@ -12,7 +12,18 @@ describe('test login api', function() {
         });
         return cookie;
     };
-
+    var login = function(usr) {
+        return new Promise(function(resolve, reject) {
+            request.post({
+                url: url,
+                body: usr,
+                json: true
+            }, function(err, response, body) {
+                if(err) reject(err);
+                else resolve(body);
+            })
+        })
+    }
     beforeEach(function(done) {
         mongodb.MongoClient
             .connect('mongodb://localhost/l2')
