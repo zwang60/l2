@@ -5,6 +5,7 @@ describe('test login api', function() {
     var host = process.env.HOST || 'localhost';
     var url = 'http://' + host + ':' + port + '/api/login';
     var parseCookie = function(response) {
+        if (!response) return;
         var cookie;
         response.headers['set-cookie'].forEach(function(item) {
             if (item.startsWith('connect.sid'))
@@ -12,6 +13,8 @@ describe('test login api', function() {
         });
         return cookie;
     };
+
+
     var login = function(usr) {
         return new Promise(function(resolve, reject) {
             request.post({
@@ -19,7 +22,8 @@ describe('test login api', function() {
                 body: usr,
                 json: true
             }, function(err, response, body) {
-                if(err) reject(err);
+                login.cookie = parseCookie(response);
+                if (err) reject(err);
                 else resolve(body);
             })
         })
@@ -56,19 +60,53 @@ describe('test login api', function() {
         //1. post login
         //2. get cookie
         //3. get login
-        request.post({
-            url: url,
-            body: {
-                usr: 'xyz',
-                pwd: 'xyz'
-            },
-            json: true
-        }, function(err, response, body) {
-            console.log('login finished', err, response, body);
+        login({
+            usr: 'xyz',
+            pwd: 'xyz'
+        }).then(function(body) {
             expect(body).toEqual({
                 usr: 'xyz'
+            })
+        }, function(err) {
+            expect(err).toBeNull();
+        }).then(done).catch(console.log);
+    })
+    it('check cannot login without pwd', function(done) {
+        //1. post login
+        //2. get cookie
+        //3. get login
+        login({
+            usr: 'xyz'
+        }).then(function(body) {
+            expect(body).toEqual({
+                msg: 'usr or pwd is required'
             });
-            done();
-        })
+        }, function(err) {
+            expect(err).toBeNull();
+        }).then(done).catch(console.log);
+    })
+    it('check is login after login', function(done) {
+        login({
+                usr: 'xyz',
+                pwd: 'xyz'
+            }).then(function() {
+                return new Promise(function(resolve, reject) {
+                    request({
+                        url: url,
+                        headers: {
+                            cookie: request.cookie(login.cookie)
+                        },
+                        json: true
+                    }, function(err, response, body) {
+                        console.log(err, body);
+                        !!err && reject(err) || resolve(body);
+                    })
+                })
+            })
+            .then(function(info){
+                expect(info).toEqual({usr: 'xyz'})
+                done();
+            })
+            .catch(done);
     })
 })
